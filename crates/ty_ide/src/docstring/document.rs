@@ -2,18 +2,16 @@ use indexmap::IndexMap;
 
 /// Google-style docstring parsing.
 pub(in crate::docstring) mod google;
+mod numpy;
 pub(super) mod preformatted;
 pub(super) mod rst;
 /// Syntax utilities shared by docstring format parsers and renderers.
 pub(in crate::docstring) mod syntax;
 
 /// Returns docs for all parameters recognized in the given docstring.
-pub(super) fn parameter_documentation(
-    raw: &str,
-    numpy_parameters: IndexMap<String, String>,
-) -> IndexMap<String, String> {
+pub(super) fn parameter_documentation(raw: &str) -> IndexMap<String, String> {
     let mut parameters = google::parameter_documentation(raw);
-    parameters.extend(numpy_parameters);
+    parameters.extend(numpy::parameter_documentation(raw));
     parameters.extend(rst::parameter_documentation(raw));
     parameters
 }
