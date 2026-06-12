@@ -6,10 +6,11 @@ use strum::IntoEnumIterator;
 use super::general;
 use crate::docstring::document::preformatted::MarkdownFence;
 use crate::docstring::document::syntax::{parsed_lines, starts_with_markdown_list_item};
-use crate::docstring::document::{SectionKind, google as google_document};
+use crate::docstring::document::{SectionKind, google as google_document, numpy as numpy_document};
 
 mod body;
 mod google;
+mod numpy;
 mod rst;
 
 /// Renders a decoded docstring as Markdown.
@@ -25,12 +26,23 @@ pub(super) fn render_into(output: &mut String, raw: &str, source: &str) {
             google_starts.push(start);
         }
     });
+    let mut numpy_starts = Vec::new();
+    numpy_document::visit_sections(raw, |_, range, _| {
+        if let Some(start) = line_offsets.normalized(range.start()) {
+            numpy_starts.push(start);
+        }
+    });
 
     let mut sections = rst::structured_sections(source);
     sections.extend(
         google::structured_sections(source)
             .into_iter()
             .filter(|section| google_starts.binary_search(&section.start()).is_ok()),
+    );
+    sections.extend(
+        numpy::structured_sections(source)
+            .into_iter()
+            .filter(|section| numpy_starts.binary_search(&section.start()).is_ok()),
     );
     render_sections_into(output, source, sections);
 }
@@ -1350,6 +1362,352 @@ Returns:
                 );
             }
         }
+    }
+
+    #[test]
+    fn numpy_sections_render_markdown_sections() {
+        let docstring = "\
+Summary.
+
+Parameters
+----------
+value, alias : str
+    The value.
+other
+    Another value.
+
+Other Parameters
+----------------
+kw_only : str, optional
+    Less common option.
+
+Returns
+-------
+    result : bool
+        Whether validation passed.
+
+Yields
+------
+    int
+        Next value.
+";
+        assert_snapshot!(render_docstring(docstring), @r"
+        Summary.
+
+        ## Parameters
+        **value, alias**: `str`  
+        The value.
+
+        **other**  
+        Another value.
+
+        ## Other Parameters
+        **kw\_only**: `str, optional`  
+        Less common option.
+
+        ## Returns
+        **result**: `bool`  
+        Whether validation passed.
+
+        ## Yields
+        `int`  
+        Next value.
+        ");
+
+        let docstring = "\
+Summary.
+
+Parameters
+----------
+value: str
+    The value.
+
+Returns
+-------
+result: bool
+    Whether validation passed.
+
+Yields
+------
+item: int
+    Next value.
+";
+        assert_snapshot!(render_docstring(docstring), @"
+        Summary.
+
+        ## Parameters
+        **value**: `str`  
+        The value.
+
+        ## Returns
+        **result**: `bool`  
+        Whether validation passed.
+
+        ## Yields
+        **item**: `int`  
+        Next value.
+        ");
+
+        let docstring = "\
+Summary.
+
+Returns
+-------
+    :obj:`list` of :obj:`str`
+        Primary values.
+    list of node-like
+        Related nodes.
+
+Yields
+------
+    :class:`Iterator` of :obj:`str`
+        Next labels.
+";
+        assert_snapshot!(render_docstring(docstring), @"
+        Summary.
+
+        ## Returns
+        `` :obj:`list` of :obj:`str` ``  
+        Primary values.
+
+        `list of node-like`  
+        Related nodes.
+
+        ## Yields
+        `` :class:`Iterator` of :obj:`str` ``  
+        Next labels.
+        ");
+
+        let docstring = "\
+Parameters
+----------
+value : str
+    Example::
+        ```
+other : int
+    Another value.
+";
+        assert_snapshot!(render_docstring(docstring), @"
+        ## Parameters
+        **value**: `str`  
+        Example:
+
+        ```````````python
+            ```
+        ```````````
+
+        **other**: `int`  
+        Another value.
+        ");
+    }
+
+    #[test]
+    fn compact_numpy_parameters_render_as_structured_markdown() {
+        let docstring = "\
+Parameters
+----------
+matrix: scipy.sparse array
+    Sparse adjacency matrix.
+args:
+    Additional arguments.
+*values:
+    Additional values.
+";
+
+        assert_eq!(
+            render_docstring(docstring),
+            "## Parameters\n**matrix**: `scipy.sparse array`  \nSparse adjacency matrix.\n\n\
+             **args**  \nAdditional arguments.\n\n**\\*values**  \nAdditional values."
+        );
+    }
+
+    #[test]
+    fn undocumented_compact_numpy_parameters_render_as_structured_markdown() {
+        let docstring = "\
+Parameters
+----------
+G: Graph
+beta : float
+    Useful documentation.
+";
+
+        assert_eq!(
+            render_docstring(docstring),
+            "## Parameters\n**G**: `Graph`\n\n**beta**: `float`  \nUseful documentation."
+        );
+    }
+
+    #[test]
+    fn numpy_parameter_section_preambles_render_as_structured_markdown() {
+        let docstring = "\
+Parameters
+----------
+Either x or y must be provided.
+
+beta : float
+    Useful documentation.
+";
+
+        assert_eq!(
+            render_docstring(docstring),
+            "## Parameters\nEither x or y must be provided.\n\n**beta**: `float`  \n\
+             Useful documentation."
+        );
+    }
+
+    #[test]
+    fn numpy_parameter_section_preambles_keep_nested_items_unstructured() {
+        let docstring = "\
+Parameters
+----------
+Choose one of the following.
+    nested : int
+        Example-only text.
+beta : float
+    Useful documentation.
+";
+
+        let rendered = render_docstring(docstring);
+        assert!(rendered.contains("**beta**: `float`"));
+        assert!(!rendered.contains("**nested**"));
+    }
+
+    #[test]
+    fn numpy_headers_nested_in_containers_stay_raw() {
+        for docstring in [
+            "\
+Summary.
+
+- Example data:
+    Parameters
+    ----------
+    nested : int
+        Not parameter documentation.
+",
+            "\
+Examples
+--------
+    Parameters
+    ----------
+    nested : int
+        Not parameter documentation.
+
+Notes
+-----
+More details.
+",
+        ] {
+            assert!(!render_docstring(docstring).contains("## Parameters"));
+        }
+
+        let docstring = "\
+:param value: Example input.
+
+    Parameters
+    ----------
+    nested : int
+        Not parameter documentation.
+:param other: Other input.
+";
+        assert!(!render_docstring(docstring).contains("**nested**"));
+    }
+
+    #[test]
+    fn shifted_top_level_numpy_sections_render_as_structured_markdown() {
+        let docstring = "\
+A decoded newline follows:
+This line starts at column zero.
+
+    Parameters
+    ----------
+    shifted : int
+        Documentation in a shifted section.
+
+    Returns
+    -------
+    bool
+        Result.
+";
+
+        assert_eq!(
+            render_docstring(docstring),
+            "A decoded newline follows:  \nThis line starts at column zero.\n\n## Parameters\n\
+             **shifted**: `int`  \nDocumentation in a shifted section.\n\n## Returns\n\
+             `bool`  \nResult."
+        );
+    }
+
+    #[test]
+    fn numpy_undocumented_return_and_raise_items_render() {
+        let docstring = "\
+Returns
+-------
+int
+str
+
+Raises
+------
+ValueError
+    Invalid value.
+TypeError
+";
+
+        assert_eq!(
+            render_docstring(docstring),
+            "## Returns\n`int`\n\n`str`\n\n## Raises\n`ValueError`  \nInvalid value.\n\n`TypeError`"
+        );
+    }
+
+    #[test]
+    fn unsupported_numpy_sections_stay_raw() {
+        for docstring in [
+            "\
+Summary.
+
+Returns
+-------
+    The created object.
+",
+            "\
+Summary.
+
+Returns
+-------
+
+Notes
+-----
+Not a return value.
+",
+            "\
+Summary.
+
+Parameters
+----------
+value : str
+    Example:
+    ```python
+other : str
+    ```
+other : int
+    Real parameter.
+",
+        ] {
+            assert_eq!(render_docstring(docstring), render_general(docstring));
+        }
+    }
+
+    #[test]
+    fn indented_numpy_sections_stay_raw() {
+        let docstring = "\
+Summary.
+
+    Parameters
+    ----------
+    other : str
+        Another value.
+";
+
+        assert_eq!(render_docstring(docstring), render_general(docstring));
     }
 
     #[test]
