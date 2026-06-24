@@ -1308,7 +1308,6 @@ impl KnownClass {
             | Self::ProtocolMeta
             | Self::ParamSpec
             | Self::Hashable
-            | Self::TypeVarTuple
             | Self::SupportsIndex => KnownModule::Typing,
             Self::TypeAliasType
             | Self::ExtensionsTypeVar
@@ -1319,6 +1318,13 @@ impl KnownClass {
             | Self::Deprecated
             | Self::ExtensionTypedDictFallback
             | Self::NewType => KnownModule::TypingExtensions,
+            Self::TypeVarTuple => {
+                if Program::get(db).python_version(db) >= PythonVersion::PY311 {
+                    KnownModule::Typing
+                } else {
+                    KnownModule::TypingExtensions
+                }
+            }
             Self::Sentinel => {
                 if Program::get(db).python_version(db) >= PythonVersion::PY315 {
                     KnownModule::Builtins
