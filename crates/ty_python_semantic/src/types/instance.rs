@@ -1155,6 +1155,8 @@ mod synthesized_protocol {
         ) {
             self.interface(db)
                 .find_legacy_typevars_impl(db, binding_context, typevars, visitor);
+            self.origin(db)
+                .find_legacy_typevars_impl(db, binding_context, typevars, visitor);
         }
 
         pub(in crate::types) fn recursive_type_normalized_impl(
