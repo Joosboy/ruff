@@ -900,7 +900,7 @@ impl<'db> ProtocolInstanceType<'db> {
             // ```
             Protocol::Synthesized(synthesized) => synthesized.origin(db).map_or_else(
                 || KnownClass::Type.to_instance(db),
-                |origin| SubclassOfType::from(db, origin),
+                |origin| SubclassOfType::from_protocol(self, origin),
             ),
         }
     }
