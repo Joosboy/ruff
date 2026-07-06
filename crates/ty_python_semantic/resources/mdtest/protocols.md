@@ -3838,8 +3838,8 @@ reveal_type(indexed_data)  # revealed: dict[str, IntArray]
 
 ### Recursive protocols during `dict()` inference
 
-This case already reports two type errors. Materialization during call inference must stop at the
-recursive references without changing those diagnostics:
+The iterator items have the two-element tuple shape expected by `dict()`. Materialization during
+call inference must stop at the recursive references while preserving the key and value types:
 
 ```py
 from collections.abc import Iterator
@@ -3864,10 +3864,7 @@ def infer_tile_ids(
     raise NotImplementedError
 
 def _(datasets: NestedSequence[T]) -> None:
-    result: dict[tuple[int, ...], T] = dict(  # error: [invalid-assignment]
-        # error: [invalid-argument-type]
-        infer_tile_ids(datasets, ())
-    )
+    result: dict[tuple[int, ...], T] = dict(infer_tile_ids(datasets, ()))
 ```
 
 ### Regression test: `dict()` overloads with tuple-of-tuples input

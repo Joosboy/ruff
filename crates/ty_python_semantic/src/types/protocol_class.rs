@@ -1004,17 +1004,24 @@ impl<'db> ProtocolMemberData<'db> {
         let kind = self
             .kind
             .apply_type_mapping_impl(db, type_mapping, tcx, visitor);
-        let capabilities =
-            self.capabilities(db)
-                .apply_type_mapping_impl(db, type_mapping, tcx, visitor);
         let mut mapped = Self {
             kind,
             mapped_capabilities: None,
             qualifiers: self.qualifiers,
             definition: self.definition,
         };
-        if mapped.capabilities(db) != capabilities {
-            mapped.mapped_capabilities = Some(capabilities);
+        // Method and property callables already encode the variance of their reads and writes.
+        // Their derived capabilities can cut a recursive type at a different point if mapped
+        // separately, so keep the mapped member kind as the canonical representation. Plain
+        // attributes need the sidecar because one stored value type cannot represent their
+        // independently materialized read and write capabilities.
+        if matches!(self.kind, ProtocolMemberKind::Attribute(_)) {
+            let capabilities =
+                self.capabilities(db)
+                    .apply_type_mapping_impl(db, type_mapping, tcx, visitor);
+            if mapped.capabilities(db) != capabilities {
+                mapped.mapped_capabilities = Some(capabilities);
+            }
         }
         mapped
     }

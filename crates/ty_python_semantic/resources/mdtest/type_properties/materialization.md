@@ -951,7 +951,8 @@ read and write requirements. Subtyping and union simplification must use those r
 
 ```py
 from typing import Any, Protocol
-from ty_extensions import Bottom, Top, is_subtype_of, static_assert
+from ty_extensions import Bottom, Top, static_assert
+from ty_extensions._internal import is_subtype_of
 
 class MutableAny(Protocol):
     value: Any
@@ -1003,7 +1004,8 @@ Class variables have separate read and write types. `Top` permits every read and
 
 ```py
 from typing import Any, ClassVar, Protocol
-from ty_extensions import Bottom, Top, is_subtype_of, static_assert
+from ty_extensions import Bottom, Top, static_assert
+from ty_extensions._internal import is_subtype_of
 
 class ClassVarAny(Protocol):
     value: ClassVar[Any]
@@ -1224,7 +1226,8 @@ Expanding a generic alias preserves the materialized write type:
 
 ```py
 from typing import Any, Protocol
-from ty_extensions import Bottom, Top, is_equivalent_to, static_assert
+from ty_extensions import Bottom, Top, static_assert
+from ty_extensions._internal import is_equivalent_to
 
 class GenericMutable[T](Protocol):
     value: T
