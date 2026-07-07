@@ -7,7 +7,7 @@ use crate::types::variance::VarianceInferable;
 use crate::types::{
     ApplyTypeMappingVisitor, BoundTypeVarIdentity, BoundTypeVarInstance, ClassLiteral, ClassType,
     DynamicType, FindLegacyTypeVarsVisitor, KnownClass, MaterializationKind, MemberLookupPolicy,
-    ProtocolInstanceType, SpecialFormType, Type, TypeContext, TypeMapping,
+    ProtocolInstanceType, SpecialFormType, Type, TypeContext, TypeMapping, TypeQualifiers,
     TypeVarBoundOrConstraints, TypeVarVariance, TypedDictType, UnionType, todo_type,
 };
 use crate::{Db, FxOrderSet};
@@ -128,11 +128,10 @@ impl<'db> SubclassOfType<'db> {
         self.subclass_of
     }
 
-    /// Returns the materialized class-backed protocol represented by this meta-type, if any.
+    /// Returns the effective class-write requirement supplied by this meta-type, if any.
     ///
-    /// Retaining the effective protocol interface lets attribute access through `type(...)` use
-    /// the materialized read and write capabilities instead of falling back to the original
-    /// protocol class:
+    /// Class-backed protocol materializations retain an effective interface whose class-member
+    /// capabilities can differ from those of the original protocol class:
     ///
     /// ```python
     /// from typing import Any, ClassVar, Protocol
@@ -144,13 +143,26 @@ impl<'db> SubclassOfType<'db> {
     /// def f(p: Top[P]) -> None:
     ///     type(p).value = 1  # error: [invalid-assignment]
     /// ```
-    pub(super) const fn materialized_protocol(self) -> Option<ProtocolInstanceType<'db>> {
-        match self.subclass_of {
-            SubclassOfInner::Protocol(protocol) => Some(protocol),
+    pub(super) fn class_write_requirement(
+        self,
+        db: &'db dyn Db,
+        name: &str,
+    ) -> Option<(Option<Type<'db>>, TypeQualifiers)> {
+        let protocol = match self.subclass_of {
+            SubclassOfInner::Protocol(protocol) => protocol,
             SubclassOfInner::Class(_)
             | SubclassOfInner::Dynamic(_)
-            | SubclassOfInner::TypeVar(_) => None,
-        }
+            | SubclassOfInner::TypeVar(_) => return None,
+        };
+
+        protocol
+            .interface(db)
+            .class_write_requirement(db, Type::ProtocolInstance(protocol), name)
+            .map(|(write_ty, mut qualifiers)| {
+                // `ClassVar` prohibits instance writes, not writes through the class object.
+                qualifiers.remove(TypeQualifiers::CLASS_VAR);
+                (write_ty, qualifiers)
+            })
     }
 
     pub(crate) const fn is_dynamic(self) -> bool {
