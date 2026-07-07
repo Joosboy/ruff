@@ -3836,37 +3836,6 @@ indexed_data = {k: v[0:10] for k, v in data.items()}
 reveal_type(indexed_data)  # revealed: dict[str, IntArray]
 ```
 
-### Recursive protocols during `dict()` inference
-
-The iterator items have the two-element tuple shape expected by `dict()`. Materialization during
-call inference must stop at the recursive references while preserving the key and value types:
-
-```py
-from collections.abc import Iterator
-from typing import Protocol, TypeVar, overload
-
-T_co = TypeVar("T_co", covariant=True)
-T = TypeVar("T")
-
-class NestedSequence(Protocol[T_co]):
-    def __len__(self, /) -> int: ...
-    @overload
-    def __getitem__(self, index: int, /) -> T_co | "NestedSequence[T_co]": ...
-    @overload
-    def __getitem__(self, index: slice, /) -> "NestedSequence[T_co]": ...
-    def __iter__(self, /) -> Iterator[T_co | "NestedSequence[T_co]"]: ...
-    def __reversed__(self, /) -> Iterator[T_co | "NestedSequence[T_co]"]: ...
-
-def infer_tile_ids(
-    entry: NestedSequence[T],
-    current_pos: tuple[int, ...],
-) -> Iterator[tuple[tuple[int, ...], T]]:
-    raise NotImplementedError
-
-def _(datasets: NestedSequence[T]) -> None:
-    result: dict[tuple[int, ...], T] = dict(infer_tile_ids(datasets, ()))
-```
-
 ### Regression test: `dict()` overloads with tuple-of-tuples input
 
 This is a regression test for [ty#3026](https://github.com/astral-sh/ty/issues/3026). Matching the

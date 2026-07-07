@@ -128,6 +128,22 @@ impl<'db> SubclassOfType<'db> {
         self.subclass_of
     }
 
+    /// Returns the materialized class-backed protocol represented by this meta-type, if any.
+    ///
+    /// Retaining the effective protocol interface lets attribute access through `type(...)` use
+    /// the materialized read and write capabilities instead of falling back to the original
+    /// protocol class:
+    ///
+    /// ```python
+    /// from typing import Any, ClassVar, Protocol
+    /// from ty_extensions import Top
+    ///
+    /// class P(Protocol):
+    ///     value: ClassVar[Any]
+    ///
+    /// def f(p: Top[P]) -> None:
+    ///     type(p).value = 1  # error: [invalid-assignment]
+    /// ```
     pub(super) const fn materialized_protocol(self) -> Option<ProtocolInstanceType<'db>> {
         match self.subclass_of {
             SubclassOfInner::Protocol(protocol) => Some(protocol),
@@ -459,6 +475,11 @@ impl<'c, 'db> DisjointnessChecker<'_, 'c, 'db> {
 pub(crate) enum SubclassOfInner<'db> {
     Class(ClassType<'db>),
     Dynamic(DynamicType<'db>),
+    /// The meta-type of a materialized class-backed protocol.
+    ///
+    /// Retains the materialized interface so attribute reads and writes through `type(...)` use its
+    /// mapped capabilities, while preserving the original protocol class for operations that need
+    /// it.
     Protocol(ProtocolInstanceType<'db>),
     TypeVar(BoundTypeVarInstance<'db>),
 }
