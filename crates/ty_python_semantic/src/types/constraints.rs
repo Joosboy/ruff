@@ -626,7 +626,6 @@ impl<'db, 'c> ConstraintSet<'db, 'c> {
         )
     }
 
-    #[expect(dead_code)]
     pub(crate) fn with_deferred_quantification(
         mut self,
         db: &'db dyn Db,
@@ -650,25 +649,6 @@ impl<'db, 'c> ConstraintSet<'db, 'c> {
             self.node
                 .apply_deferred_quantification(db, builder, self.deferred_quantification);
         Self::from_node(builder, node, InferableTypeVars::None)
-    }
-
-    /// Reduces the set of inferable typevars for this constraint set. You provide an iterator of
-    /// the typevars that were inferable when this constraint set was created, and which should be
-    /// abstracted away. Those typevars will be removed from the constraint set, and the constraint
-    /// set will return true whenever there was _any_ specialization of those typevars that
-    /// returned true before.
-    pub(crate) fn reduce_inferable(
-        self,
-        db: &'db dyn Db,
-        builder: &'c ConstraintSetBuilder<'db>,
-        to_remove: impl IntoIterator<Item = BoundTypeVarIdentity<'db>>,
-    ) -> Self {
-        self.verify_builder(builder);
-        Self::from_node(
-            builder,
-            self.node.exists(db, builder, to_remove),
-            self.deferred_quantification,
-        )
     }
 
     /// Computes solutions for each BDD path, using a caller-provided hook to select solutions.
