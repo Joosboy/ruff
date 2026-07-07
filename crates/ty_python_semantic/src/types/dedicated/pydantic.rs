@@ -169,7 +169,11 @@ fn own_model_config(db: &dyn Db, class: StaticClassLiteral<'_>) -> Option<ModelC
         };
     };
 
-    let module = parsed_module(db, class.file(db)).load(db);
+    let module = parsed_module(
+        db,
+        class.body_scope(db).analysis_file(db).versioned_file(db),
+    )
+    .load(db);
     let kind = definition.kind(db);
     let value = match &kind {
         DefinitionKind::Assignment(assignment) => assignment.value(&module),
@@ -226,7 +230,11 @@ fn own_model_config(db: &dyn Db, class: StaticClassLiteral<'_>) -> Option<ModelC
 
 fn class_keyword_config(db: &dyn Db, class: StaticClassLiteral<'_>) -> Option<ModelConfig> {
     let definition = class.definition(db);
-    let module = parsed_module(db, class.file(db)).load(db);
+    let module = parsed_module(
+        db,
+        class.body_scope(db).analysis_file(db).versioned_file(db),
+    )
+    .load(db);
     let kind = definition.kind(db);
     let class_node = kind.as_class()?.node(&module);
     let arguments = class_node.arguments.as_ref()?;
