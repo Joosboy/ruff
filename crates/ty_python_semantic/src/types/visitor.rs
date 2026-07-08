@@ -464,7 +464,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::types::{DynamicType, Type};
+    use crate::types::{DynamicType, SpecialFormType, Type};
 
     use super::CollectedTypes;
 
@@ -480,7 +480,7 @@ mod tests {
             Type::Dynamic(DynamicType::UnspecializedTypeVar),
             Type::Dynamic(DynamicType::InvalidConcatenateUnknown),
             Type::Dynamic(DynamicType::AmbiguousOverload),
-            Type::Dynamic(DynamicType::TodoUnpack),
+            Type::SpecialForm(SpecialFormType::Any),
         ];
 
         for ty in types {
@@ -489,7 +489,7 @@ mod tests {
 
         assert!(collected.is_spilled());
         assert!(!collected.insert(Type::Never));
-        assert!(!collected.insert(Type::Dynamic(DynamicType::TodoUnpack)));
-        assert!(collected.insert(Type::Dynamic(DynamicType::TodoStarredExpression)));
+        assert!(!collected.insert(Type::SpecialForm(SpecialFormType::Any)));
+        assert!(collected.insert(Type::SpecialForm(SpecialFormType::Unknown)));
     }
 }
