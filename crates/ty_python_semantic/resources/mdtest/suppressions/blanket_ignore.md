@@ -24,16 +24,31 @@ c = unresolved  # type: ignore
 
 ## Unused ignore comments
 
-When `unused-ignore-comment` is enabled, an unused `ty: ignore` comment without rule codes triggers
-both rules.
+When `unused-ignore-comment` is enabled, it is solely responsible for reporting unused blanket
+ignore comments.
 
 ```py
 # error: [unused-ignore-comment] "Unused `ty: ignore` without a code"
 d = 1  # ty: ignore[]
 
-# error: [blanket-ignore-comment]
 # error: [unused-ignore-comment] "Unused blanket `ty: ignore` directive"
 e = 1  # ty: ignore
+```
+
+## When `unused-ignore-comment` is disabled
+
+When `unused-ignore-comment` is disabled, `blanket-ignore-comment` still reports unused blanket
+ignore comments.
+
+```toml
+[rules]
+blanket-ignore-comment = "error"
+unused-ignore-comment = "ignore"
+```
+
+```py
+# error: [blanket-ignore-comment]
+f = 1  # ty: ignore
 ```
 
 ## Suppression diagnostics
