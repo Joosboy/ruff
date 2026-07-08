@@ -147,14 +147,14 @@ fn check_blanket_suppressions(context: &mut CheckSuppressionsContext) {
         return;
     }
 
+    let unused_ignore_comment_enabled = !context.is_lint_disabled(&UNUSED_IGNORE_COMMENT);
+
     for suppression in context.suppressions.iter().filter(|suppression| {
         suppression.kind == SuppressionKind::Ty && suppression.target == SuppressionTarget::All
     }) {
         // Let `unused-ignore-comment` own unused blanket suppressions. Otherwise, `--add-ignore`
         // would add a suppression for `blanket-ignore-comment` that `--fix` immediately removes.
-        if !context.is_lint_disabled(&UNUSED_IGNORE_COMMENT)
-            && !context.is_suppression_used(suppression.id())
-        {
+        if unused_ignore_comment_enabled && !context.is_suppression_used(suppression.id()) {
             continue;
         }
 
