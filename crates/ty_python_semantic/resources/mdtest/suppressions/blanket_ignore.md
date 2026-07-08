@@ -37,8 +37,8 @@ e = 1  # ty: ignore
 
 ## When `unused-ignore-comment` is disabled
 
-If `unused-ignore-comment` is disabled, ty reports `blanket-ignore-comment` for the same comment
-instead.
+If `unused-ignore-comment` is disabled, ty reports `blanket-ignore-comment` for an unused blanket
+`ty: ignore` comment.
 
 ```toml
 [rules]
