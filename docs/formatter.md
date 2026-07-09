@@ -12,6 +12,7 @@ directories, and formats all discovered Python files:
 ruff format                   # Format all files in the current directory.
 ruff format path/to/code/     # Format all files in `path/to/code` (and any subdirectories).
 ruff format path/to/file.py   # Format a single file.
+ruff format @arguments.txt     # Format using an input file with one argument per line.
 ```
 
 Similar to Black, running `ruff format /path/to/file.py` will format the given file or directory

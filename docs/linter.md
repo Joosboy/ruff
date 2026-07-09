@@ -17,6 +17,7 @@ $ ruff check                  # Lint files in the current directory.
 $ ruff check --fix            # Lint files in the current directory and fix any fixable errors.
 $ ruff check --watch          # Lint files in the current directory and re-lint on change.
 $ ruff check path/to/code/    # Lint files in `path/to/code`.
+$ ruff check @arguments.txt     # Lint using an input file with one argument per line.
 ```
 
 For the full list of supported options, run `ruff check --help`.
